@@ -5,7 +5,9 @@ using System;
 using System.Data;
 using System.Reflection.Metadata;
 using System.Text;
-
+using ClosedXML.Excel;
+using NPOI.XSSF.UserModel;
+using NPOI.SS.UserModel;
 namespace WebinarApi
 {
 
@@ -26,6 +28,9 @@ namespace WebinarApi
         public string RegistrationSource { get; set; }
         public string RegistrationDate { get; set; }
         public string IpAddress { get; set; }
+        public string Jobarea { get; set; }
+        public string Jobfunction { get; set; }
+        
     }
     public class LatestSchedule
     {
@@ -234,7 +239,7 @@ namespace WebinarApi
 
         public static async Task FetchAndSaveRegistrantsToCsv(string webinarID,string webinarTitle)
         {
-           // webinarID = "6703f4b8984dc17509cea4b7";
+            // webinarID = "67dc72deab4ca869633d7f0d";
             var client = new HttpClient();
             int pageindex = 1;
          
@@ -269,14 +274,15 @@ namespace WebinarApi
             }
 
             // Save to CSV (append mode)
-            SaveToCsv(registrantsList, webinarID, webinarTitle);
+          //  SaveToCsv(registrantsList, webinarID, webinarTitle);
+            SaveToExcel(registrantsList, webinarID, webinarTitle);
 
         }
 
         public static void SaveToCsv(List<Registrant> registrants ,string webinarID ,string webinarTitle)
         {
            //string filePath = "$@\"H:\\1014\\DATAREQ\\316\\registrants.csv";
-            string filePath = $@"H:\1014\DATAREQ\316\registrants_final.csv";
+            string filePath = $@"H:\1014\DATAREQ\316\registrants_final_14Arp01.csv";
             bool fileExists = File.Exists(filePath);
 
             using (var writer = new StreamWriter(filePath, append: true))
@@ -284,18 +290,137 @@ namespace WebinarApi
                 // Write header row only if the file does not exist
                 if (!fileExists)
                 {
-                    writer.WriteLine("Id,FirstName,LastName,EmailAddress,Company,JobTitle,PhoneNumber,Country,StateProvince,Promocode,Sector,CampaignCode,RegistrationSource,RegistrationDate,IpAddress,webinarID,webinarTitle");
+                    writer.WriteLine("Id,FirstName,LastName,EmailAddress,Company,JobTitle,Jobarea,Jobfunction,PhoneNumber,Country,StateProvince,Promocode,Sector,CampaignCode,RegistrationSource,RegistrationDate,IpAddress,webinarID,webinarTitle");
                 }
 
                 // Write data rows (appended)
                 foreach (var reg in registrants)
                 {
                     Console.WriteLine($" {reg.EmailAddress} , {webinarTitle} ");
-                    writer.WriteLine($"{reg.Id},{reg.FirstName},{reg.LastName},{reg.EmailAddress},{reg.Company},{reg.JobTitle},{reg.PhoneNumber},{reg.Country},{reg.StateProvince},{reg.Promocode},{reg.Sector},{reg.CampaignCode},{reg.RegistrationSource},{reg.RegistrationDate},{reg.IpAddress},{webinarID},{webinarTitle}");
+                   
+                        writer.WriteLine($"{reg.Id},{reg.FirstName},{reg.LastName},{reg.EmailAddress},{reg.Company},{reg.Jobarea},{reg.Jobfunction},{reg.JobTitle},{reg.PhoneNumber},{reg.Country},{reg.StateProvince},{reg.Promocode},{reg.Sector},{reg.CampaignCode},{reg.RegistrationSource},{reg.RegistrationDate},{reg.IpAddress},{webinarID},{webinarTitle}");
+                                           
                 }
             }
 
             Console.WriteLine($"Data appended to CSV file: {filePath}");
         }
-    }
+
+
+
+        public static void SaveToExcel(List<Registrant> registrants, string webinarID, string webinarTitle)
+        {
+            string filePath = $@"H:\1014\DATAREQ\316\registrants_final_14Arp01_new.xlsx";
+            bool fileExists = File.Exists(filePath);
+
+            XSSFWorkbook workbook;
+            ISheet sheet;
+            int startRow;
+
+            if (fileExists)
+            {
+                // Open existing workbook
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                {
+                    workbook = new XSSFWorkbook(fs);
+                }
+
+                // Get the first sheet or create it if it doesn't exist
+                sheet = workbook.GetSheetAt(0) ?? workbook.CreateSheet("Registrants");
+
+                // Find the last row with data
+                startRow = sheet.LastRowNum + 1;
+
+                // If the sheet is empty or only has headers, set startRow appropriately
+                if (startRow <= 0)
+                {
+                    AddHeaders(workbook, sheet);
+                    startRow = 1; // Start at row 1 (after headers, 0-based index)
+                }
+            }
+            else
+            {
+                // Create a new workbook
+                workbook = new XSSFWorkbook();
+                sheet = workbook.CreateSheet("Registrants");
+
+                // Add headers
+                AddHeaders(workbook, sheet);
+
+                // Start at row 1 (after headers, 0-based index)
+                startRow = 1;
+            }
+
+            // Add data rows
+            foreach (var reg in registrants)
+            {
+                Console.WriteLine($" {reg.EmailAddress} , {webinarTitle} ");
+
+                var row = sheet.CreateRow(startRow++);
+
+                row.CreateCell(0).SetCellValue(reg.Id);
+                row.CreateCell(1).SetCellValue(reg.FirstName);
+                row.CreateCell(2).SetCellValue(reg.LastName);
+                row.CreateCell(3).SetCellValue(reg.EmailAddress);
+                row.CreateCell(4).SetCellValue(reg.Company);
+                row.CreateCell(5).SetCellValue(reg.JobTitle);
+                row.CreateCell(6).SetCellValue(reg.Jobarea);
+                row.CreateCell(7).SetCellValue(reg.Jobfunction);
+                row.CreateCell(8).SetCellValue(reg.PhoneNumber);
+                row.CreateCell(9).SetCellValue(reg.Country);
+                row.CreateCell(10).SetCellValue(reg.StateProvince);
+                row.CreateCell(11).SetCellValue(reg.Promocode);
+                row.CreateCell(12).SetCellValue(reg.Sector);
+                row.CreateCell(13).SetCellValue(reg.CampaignCode);
+                row.CreateCell(14).SetCellValue(reg.RegistrationSource);
+                row.CreateCell(15).SetCellValue(reg.RegistrationDate != null ? reg.RegistrationDate.ToString() : "");
+                row.CreateCell(16).SetCellValue(reg.IpAddress);
+                row.CreateCell(17).SetCellValue(webinarID);
+                row.CreateCell(18).SetCellValue(webinarTitle);
+            }
+
+            // Auto-size columns
+            for (int i = 0; i < 19; i++)
+            {
+                sheet.AutoSizeColumn(i);
+            }
+
+            // Write to file
+            using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+            {
+                workbook.Write(fileStream);
+            }
+
+            Console.WriteLine($"Data appended to Excel file: {filePath}");
+        }
+
+        // Helper method to add headers to the sheet
+        private static void AddHeaders(XSSFWorkbook workbook, ISheet sheet)
+        {
+            string[] headers = new string[] {
+        "Id", "FirstName", "LastName", "EmailAddress", "Company", "JobTitle",
+        "Jobarea", "Jobfunction", "PhoneNumber", "Country", "StateProvince",
+        "Promocode", "Sector", "CampaignCode", "RegistrationSource",
+        "RegistrationDate", "IpAddress", "webinarID", "webinarTitle"
+    };
+
+            // Create a bold font style for headers
+            var headerFont = workbook.CreateFont();
+            headerFont.IsBold = true;
+
+            var headerStyle = workbook.CreateCellStyle();
+            headerStyle.SetFont(headerFont);
+
+            // Create header row
+            var headerRow = sheet.CreateRow(0);
+
+            // Add headers
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var cell = headerRow.CreateCell(i);
+                cell.SetCellValue(headers[i]);
+                cell.CellStyle = headerStyle;
+            }
+        }
+        }
     }
